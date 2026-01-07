@@ -14,6 +14,7 @@ pub struct CaptureRecord {
     pub window_title: String,
     pub is_paused: bool,
     pub is_private: bool,
+    pub ocr_text: Option<String>,
 }
 
 /// データベース管理
@@ -46,13 +47,19 @@ impl Database {
                 active_app TEXT NOT NULL,
                 window_title TEXT NOT NULL DEFAULT '',
                 is_paused INTEGER NOT NULL DEFAULT 0,
-                is_private INTEGER NOT NULL DEFAULT 0
+                is_private INTEGER NOT NULL DEFAULT 0,
+                ocr_text TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_captures_captured_at
             ON captures(captured_at);
             "#,
         )?;
+
+        // マイグレーション: ocr_textカラムを追加（既存DBの場合）
+        let _ = self
+            .conn
+            .execute("ALTER TABLE captures ADD COLUMN ocr_text TEXT", []);
 
         Ok(())
     }
@@ -61,8 +68,8 @@ impl Database {
     pub fn insert_capture(&self, record: &CaptureRecord) -> Result<i64, DatabaseError> {
         self.conn.execute(
             r#"
-            INSERT INTO captures (captured_at, image_path, active_app, window_title, is_paused, is_private)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            INSERT INTO captures (captured_at, image_path, active_app, window_title, is_paused, is_private, ocr_text)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
             "#,
             params![
                 record.captured_at,
@@ -71,10 +78,53 @@ impl Database {
                 record.window_title,
                 record.is_paused as i32,
                 record.is_private as i32,
+                record.ocr_text,
             ],
         )?;
 
         Ok(self.conn.last_insert_rowid())
+    }
+
+    /// OCRテキストを更新
+    pub fn update_ocr_text(&self, id: i64, ocr_text: &str) -> Result<(), DatabaseError> {
+        self.conn.execute(
+            "UPDATE captures SET ocr_text = ?1 WHERE id = ?2",
+            params![ocr_text, id],
+        )?;
+        Ok(())
+    }
+
+    /// OCRテキストが未設定のキャプチャを取得
+    pub fn get_captures_without_ocr(&self, limit: i64) -> Result<Vec<CaptureRecord>, DatabaseError> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, captured_at, image_path, active_app, window_title, is_paused, is_private, ocr_text
+            FROM captures
+            WHERE ocr_text IS NULL AND image_path IS NOT NULL
+            ORDER BY captured_at DESC
+            LIMIT ?1
+            "#,
+        )?;
+
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok(CaptureRecord {
+                id: Some(row.get(0)?),
+                captured_at: row.get(1)?,
+                image_path: row.get(2)?,
+                active_app: row.get(3)?,
+                window_title: row.get(4)?,
+                is_paused: row.get::<_, i32>(5)? != 0,
+                is_private: row.get::<_, i32>(6)? != 0,
+                ocr_text: row.get(7)?,
+            })
+        })?;
+
+        let mut records = Vec::new();
+        for row in rows {
+            records.push(row?);
+        }
+
+        Ok(records)
     }
 
     /// 日付でキャプチャを取得
@@ -83,7 +133,7 @@ impl Database {
 
         let mut stmt = self.conn.prepare(
             r#"
-            SELECT id, captured_at, image_path, active_app, window_title, is_paused, is_private
+            SELECT id, captured_at, image_path, active_app, window_title, is_paused, is_private, ocr_text
             FROM captures
             WHERE captured_at LIKE ?1
             ORDER BY captured_at ASC
@@ -99,6 +149,7 @@ impl Database {
                 window_title: row.get(4)?,
                 is_paused: row.get::<_, i32>(5)? != 0,
                 is_private: row.get::<_, i32>(6)? != 0,
+                ocr_text: row.get(7)?,
             })
         })?;
 
@@ -151,6 +202,7 @@ mod tests {
             window_title: "main.rs".to_string(),
             is_paused: false,
             is_private: false,
+            ocr_text: None,
         };
 
         let id = db.insert_capture(&record).unwrap();
@@ -171,6 +223,7 @@ mod tests {
                 window_title: "file1.rs".to_string(),
                 is_paused: false,
                 is_private: false,
+                ocr_text: None,
             },
             CaptureRecord {
                 id: None,
@@ -180,6 +233,7 @@ mod tests {
                 window_title: "Google".to_string(),
                 is_paused: false,
                 is_private: false,
+                ocr_text: None,
             },
             CaptureRecord {
                 id: None,
@@ -189,6 +243,7 @@ mod tests {
                 window_title: "".to_string(),
                 is_paused: false,
                 is_private: false,
+                ocr_text: None,
             },
         ];
 
@@ -223,6 +278,7 @@ mod tests {
             window_title: "".to_string(),
             is_paused: true,
             is_private: false,
+            ocr_text: None,
         };
 
         let id = db.insert_capture(&record).unwrap();

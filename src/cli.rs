@@ -3,11 +3,13 @@
 use crate::capture::CaptureLoop;
 use crate::config::{CliArgs, Config};
 use crate::database::Database;
+use crate::ocr;
 use crate::pause_control::PauseControl;
 use crate::report::Report;
 use anyhow::Result;
 use chrono::Local;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 use tracing::info;
 
 /// Habit Tracker - macOS用作業トラッキングツール
@@ -45,6 +47,16 @@ pub enum Commands {
         /// 今日のレポートを表示
         #[arg(short, long)]
         today: bool,
+    },
+    /// 画像からOCRでテキストを抽出
+    Ocr {
+        /// OCR対象の画像ファイルパス
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+
+        /// 未処理のキャプチャをOCR処理（件数指定）
+        #[arg(short, long)]
+        batch: Option<i64>,
     },
 }
 
@@ -88,6 +100,55 @@ pub fn run() -> Result<()> {
             };
 
             report.print(&target_date)?;
+        }
+        Commands::Ocr { file, batch } => {
+            if let Some(path) = file {
+                // 単一ファイルのOCR
+                match ocr::recognize_text(&path) {
+                    Ok(text) => {
+                        if text.is_empty() {
+                            println!("テキストは検出されませんでした");
+                        } else {
+                            println!("{}", text);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("OCRエラー: {}", e);
+                    }
+                }
+            } else if let Some(limit) = batch {
+                // バッチ処理: 未OCRのキャプチャを処理
+                let config = Config::load(&CliArgs::default())?;
+                let db = Database::open(&config.db_path)?;
+                let captures = db.get_captures_without_ocr(limit)?;
+
+                if captures.is_empty() {
+                    println!("OCR未処理のキャプチャはありません");
+                } else {
+                    println!("{}件のキャプチャをOCR処理します...", captures.len());
+                    for capture in captures {
+                        if let (Some(id), Some(ref path)) = (capture.id, &capture.image_path) {
+                            print!("{} ... ", path);
+                            match ocr::recognize_text(&PathBuf::from(path)) {
+                                Ok(text) => {
+                                    db.update_ocr_text(id, &text)?;
+                                    let preview = if text.len() > 50 {
+                                        format!("{}...", &text[..50])
+                                    } else {
+                                        text
+                                    };
+                                    println!("OK ({})", preview.replace('\n', " "));
+                                }
+                                Err(e) => {
+                                    println!("失敗: {}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                println!("--file または --batch オプションを指定してください");
+            }
         }
     }
 

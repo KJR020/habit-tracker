@@ -157,6 +157,7 @@ mod tests {
                 window_title: "main.rs".to_string(),
                 is_paused: false,
                 is_private: false,
+                ocr_text: None,
             },
             CaptureRecord {
                 id: None,
@@ -166,6 +167,7 @@ mod tests {
                 window_title: "lib.rs".to_string(),
                 is_paused: false,
                 is_private: false,
+                ocr_text: None,
             },
             CaptureRecord {
                 id: None,
@@ -175,6 +177,7 @@ mod tests {
                 window_title: "Google".to_string(),
                 is_paused: false,
                 is_private: false,
+                ocr_text: None,
             },
         ];
 

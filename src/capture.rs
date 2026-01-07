@@ -5,6 +5,7 @@ use crate::database::{CaptureRecord, Database};
 use crate::error::CaptureError;
 use crate::image_store::ImageStore;
 use crate::metadata::Metadata;
+use crate::ocr;
 use crate::pause_control::PauseControl;
 
 use chrono::Local;
@@ -98,22 +99,42 @@ impl CaptureLoop {
 
         // スクリーンショットをキャプチャ
         let image_path = match self.image_store.capture(&timestamp) {
-            Ok(path) => Some(path.to_string_lossy().to_string()),
+            Ok(path) => Some(path),
             Err(e) => {
                 warn!("スクリーンショットキャプチャ失敗: {}", e);
                 None
             }
         };
 
+        // OCRでテキストを抽出
+        let ocr_text = if let Some(ref path) = image_path {
+            match ocr::recognize_text(path) {
+                Ok(text) => {
+                    if text.is_empty() {
+                        None
+                    } else {
+                        Some(text)
+                    }
+                }
+                Err(e) => {
+                    warn!("OCR失敗: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // データベースに記録
         let record = CaptureRecord {
             id: None,
             captured_at: timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(),
-            image_path,
+            image_path: image_path.map(|p| p.to_string_lossy().to_string()),
             active_app,
             window_title,
             is_paused: false,
             is_private: false,
+            ocr_text,
         };
 
         self.db.insert_capture(&record)?;

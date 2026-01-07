@@ -8,6 +8,7 @@ mod error;
 mod image_store;
 mod logging;
 mod metadata;
+mod ocr;
 mod pause_control;
 mod report;
 

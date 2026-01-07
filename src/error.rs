@@ -79,6 +79,16 @@ pub enum ReportError {
     InvalidDate(String),
 }
 
+/// OCRエラー
+#[derive(Error, Debug)]
+pub enum OcrError {
+    #[error("画像が見つかりません: {0}")]
+    ImageNotFound(String),
+
+    #[error("OCR実行失敗: {0}")]
+    ExecutionFailed(String),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
