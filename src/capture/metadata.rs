@@ -1,6 +1,6 @@
 //! メタデータ収集モジュール
 
-use crate::error::MetadataError;
+use crate::infra::error::MetadataError;
 use std::process::Command;
 use tracing::warn;
 

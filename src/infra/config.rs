@@ -1,6 +1,6 @@
 //! 設定モジュール
 
-use crate::error::ConfigError;
+use super::error::ConfigError;
 use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;

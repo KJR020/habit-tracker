@@ -1,12 +1,12 @@
 //! キャプチャループモジュール
 
-use crate::config::Config;
-use crate::database::{CaptureRecord, Database};
-use crate::error::CaptureError;
-use crate::image_store::ImageStore;
-use crate::metadata::Metadata;
-use crate::ocr;
-use crate::pause_control::PauseControl;
+use crate::data::{CaptureRecord, Database};
+use crate::infra::config::Config;
+use crate::infra::error::CaptureError;
+use crate::infra::PauseControl;
+use super::image_store::ImageStore;
+use super::metadata::Metadata;
+use super::ocr;
 
 use chrono::Local;
 use std::sync::atomic::{AtomicBool, Ordering};
