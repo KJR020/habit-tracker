@@ -1,6 +1,6 @@
 //! 画像ストレージモジュール
 
-use crate::error::ImageStoreError;
+use crate::infra::error::ImageStoreError;
 use chrono::{DateTime, Local};
 use std::fs;
 use std::path::PathBuf;

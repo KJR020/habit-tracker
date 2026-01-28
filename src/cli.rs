@@ -1,11 +1,9 @@
 //! CLIモジュール
 
-use crate::capture::CaptureLoop;
-use crate::config::{CliArgs, Config};
-use crate::database::Database;
-use crate::ocr;
-use crate::pause_control::PauseControl;
-use crate::report::Report;
+use crate::capture::{ocr, CaptureLoop};
+use crate::data::{Database, Report};
+use crate::infra::config::{CliArgs, Config};
+use crate::infra::PauseControl;
 use anyhow::Result;
 use chrono::Local;
 use clap::{Parser, Subcommand};

@@ -1,6 +1,6 @@
 //! データベースモジュール
 
-use crate::error::DatabaseError;
+use crate::infra::error::DatabaseError;
 use rusqlite::{params, Connection};
 use std::path::Path;
 

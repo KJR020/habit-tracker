@@ -1,6 +1,6 @@
 //! OCRモジュール - Apple Vision APIを使用したテキスト認識
 
-use crate::error::OcrError;
+use crate::infra::error::OcrError;
 use std::path::Path;
 use std::process::Command;
 

@@ -1,7 +1,7 @@
 //! レポートモジュール
 
-use crate::database::{CaptureRecord, Database};
-use crate::error::ReportError;
+use super::database::{CaptureRecord, Database};
+use crate::infra::error::ReportError;
 use std::collections::HashMap;
 
 /// タイムラインエントリ
